@@ -360,7 +360,7 @@
             const linesDisplay = document.getElementById('lines');
             const levelDisplay = document.getElementById('level');
             const startPauseBtn = document.getElementById('start-pause-btn');
-            const resetBtn = document.getElementById('reset-btn'); // Tombol reset
+            const resetBtn = document.getElementById('reset-btn');
             const nextPieceGrid = document.querySelector('.next-piece-grid');
             const gameOverMessage = document.getElementById('game-over-message');
 
@@ -368,7 +368,7 @@
             const BOARD_WIDTH = 10;
             const BOARD_HEIGHT = 20;
 
-            let boardCells = []; // Array untuk sel di papan
+            let boardCells = [];
             let timerId = null;
             let isPlaying = false;
             let isGameOver = true;
@@ -457,32 +457,33 @@
             // --- FUNGSI UTAMA GAME ---
 
             function createBoard() {
-                for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT; i++) {
+                // Buat papan utama dan baris 'taken' yang tersembunyi
+                for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT + BOARD_WIDTH; i++) {
                     const cell = document.createElement('div');
+                    if (i >= BOARD_WIDTH * BOARD_HEIGHT) cell.classList.add('taken', 'hidden');
                     gameBoard.appendChild(cell);
                 }
-                for (let i = 0; i < BOARD_WIDTH; i++) {
-                    const cell = document.createElement('div');
-                    cell.classList.add('taken', 'hidden');
-                    gameBoard.appendChild(cell);
-                }
-                boardCells = Array.from(gameBoard.querySelectorAll('div'));
+                boardCells = Array.from(gameBoard.children);
+                
+                // Buat grid untuk preview
                 for (let i = 0; i < 16; i++) {
                     nextPieceGrid.appendChild(document.createElement('div'));
                 }
             }
             
             function handleStartPause() {
-                if (timerId) {
+                if (isPlaying) {
+                    // Jeda game
                     clearInterval(timerId);
                     timerId = null;
                     isPlaying = false;
                     startPauseBtn.textContent = 'Lanjut';
                 } else {
+                    // Mulai atau lanjutkan game
                     if (isGameOver) {
                         startGame();
                     } else {
-                        // Lanjutkan game
+                        // Lanjutkan
                         isPlaying = true;
                         startPauseBtn.textContent = 'Jeda';
                         const speed = 1000 - (level * 50);
@@ -491,9 +492,8 @@
                 }
             }
             
-            // Fungsi baru untuk memulai game dari awal
             function startGame() {
-                // Bersihkan board
+                // Bersihkan papan
                 for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT; i++) {
                     boardCells[i].className = '';
                 }
@@ -518,7 +518,6 @@
                 timerId = setInterval(moveDown, Math.max(100, speed));
             }
 
-            // Fungsi baru untuk mereset game sepenuhnya
             function fullReset() {
                 clearInterval(timerId);
                 timerId = null;
@@ -533,15 +532,14 @@
                 startPauseBtn.textContent = 'Mulai';
                 gameOverMessage.classList.remove('show');
 
-                // Bersihkan papan dan preview
                 for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT; i++) {
                     boardCells[i].className = '';
                 }
-                const nextGridCells = nextPieceGrid.querySelectorAll('div');
-                nextGridCells.forEach(cell => cell.className = '');
+                nextPieceGrid.querySelectorAll('div').forEach(cell => cell.className = '');
                 
-                undraw();
+                if (currentTetromino) undraw();
                 undrawGhost();
+                currentTetromino = null;
             }
             
             function updateDisplay() {
@@ -570,7 +568,7 @@
             }
             
             function drawGhost() {
-                if(currentTetromino && !isGameOver) {
+                if (currentTetromino && !isGameOver) {
                     currentTetromino.shape[currentRotation].forEach(index => {
                         boardCells[ghostPosition + index].classList.add('ghost');
                     });
@@ -578,14 +576,12 @@
             }
 
             function undrawGhost() {
-                const ghosts = document.querySelectorAll('.ghost');
-                ghosts.forEach(g => g.classList.remove('ghost'));
+                document.querySelectorAll('.ghost').forEach(g => g.classList.remove('ghost'));
             }
 
             function spawnNewTetromino() {
                 currentPosition = 4;
                 currentRotation = 0;
-                
                 const randomIndex = nextTetrominoIndex;
                 nextTetrominoIndex = Math.floor(Math.random() * tetrominoes.length);
                 currentTetromino = tetrominoes[randomIndex];
@@ -594,7 +590,6 @@
                     triggerGameOver();
                     return;
                 }
-                
                 draw();
                 displayNextPiece();
             }
@@ -607,27 +602,23 @@
                 gameOverMessage.classList.add('show');
                 startPauseBtn.textContent = 'Mulai Lagi';
             }
-
-            function move(offset) {
-                if (!isPlaying || isGameOver) return;
-                undraw();
-                currentPosition += offset;
-                if (checkCollision()) {
-                    currentPosition -= offset;
-                }
-                draw();
-            }
             
             function moveLeft() {
                 if (!isPlaying || isGameOver) return;
+                undraw();
                 const isAtLeftEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === 0);
-                if (!isAtLeftEdge) move(-1);
+                if (!isAtLeftEdge) currentPosition -= 1;
+                if (checkCollision()) currentPosition += 1;
+                draw();
             }
 
             function moveRight() {
                 if (!isPlaying || isGameOver) return;
+                undraw();
                 const isAtRightEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === BOARD_WIDTH - 1);
-                if (!isAtRightEdge) move(1);
+                if (!isAtRightEdge) currentPosition += 1;
+                if (checkCollision()) currentPosition -= 1;
+                draw();
             }
             
             function moveDown() {
@@ -649,52 +640,71 @@
                 lockPiece();
             }
             
-            // --- FUNGSI ROTATE YANG DIPERBARUI (FIXED EDGE BUG) ---
             function rotate() {
                 if (!isPlaying || isGameOver) return;
                 undraw();
-                const originalPosition = currentPosition;
                 const originalRotation = currentRotation;
-
-                currentRotation = (originalRotation + 1) % currentTetromino.shape.length;
+                currentRotation = (currentRotation + 1) % currentTetromino.shape.length;
                 
-                // Fungsi untuk mengecek apakah rotasi menyebabkan balok "lompat" sisi
-                const isWrapping = () => {
-                    const xPositions = currentTetromino.shape[currentRotation].map(index => (currentPosition + index) % BOARD_WIDTH);
-                    const hasFarLeft = xPositions.some(x => x < 4);
-                    const hasFarRight = xPositions.some(x => x > 5);
-                    return hasFarLeft && hasFarRight;
-                };
-
-                // Jika rotasi menyebabkan wrap, batalkan langsung
-                if (isWrapping()) {
-                    currentRotation = originalRotation;
-                    draw();
-                    return;
-                }
-
-                // Coba "wall kick" jika ada tabrakan
-                const kickOffsets = [0, 1, -1, 2, -2, -BOARD_WIDTH];
-
-                for (const offset of kickOffsets) {
-                    currentPosition = originalPosition + offset;
-                    
-                    // Cek lagi wrapping setelah di-kick
-                    if (isWrapping()) {
-                        continue; // Kick ini tidak valid, coba selanjutnya
-                    }
-
-                    // Jika posisi valid (tidak ada tabrakan), rotasi berhasil
-                    if (!checkCollision()) {
-                        draw();
-                        return;
+                const isAtRightEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === 9);
+                const isAtLeftEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === 0);
+                
+                if (checkCollision()) {
+                    if (isAtRightEdge && isAtLeftEdge) { // Khusus untuk balok I yang panjang
+                        currentPosition -=2; // Coba geser jauh
+                        if (checkCollision()) currentPosition +=2;
+                    } else {
+                        // "Wall kick" standar
+                        if ((currentPosition + 1) % BOARD_WIDTH < 4) { // Jika di sisi kiri
+                             if (isAtLeftEdge) currentPosition += 1; // Geser kanan
+                             if (checkCollision()) currentPosition -= 1;
+                        } else if ((currentPosition + 1) % BOARD_WIDTH > 5) { // Jika di sisi kanan
+                             if (isAtRightEdge) currentPosition -= 1; // Geser kiri
+                             if (checkCollision()) currentPosition += 1;
+                        }
                     }
                 }
-
-                // Jika semua percobaan kick gagal, kembalikan ke state awal
-                currentPosition = originalPosition;
-                currentRotation = originalRotation;
+                // Jika masih nabrak, batalkan rotasi
+                if (checkCollision()) currentRotation = originalRotation;
                 draw();
+            }
+
+            // --- FUNGSI CHECKROWS YANG DIPERBARUI DAN STABIL ---
+            function checkRows() {
+                let linesCleared = 0;
+                // Loop dari bawah ke atas
+                for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+                    let isRowFull = true;
+                    // Cek apakah satu baris penuh
+                    for (let x = 0; x < BOARD_WIDTH; x++) {
+                        if (!boardCells[y * BOARD_WIDTH + x].classList.contains('taken')) {
+                            isRowFull = false;
+                            break;
+                        }
+                    }
+            
+                    if (isRowFull) {
+                        linesCleared++;
+                        // Geser semua baris di atasnya ke bawah
+                        for (let j = y; j > 0; j--) {
+                            for (let x = 0; x < BOARD_WIDTH; x++) {
+                                const index = j * BOARD_WIDTH + x;
+                                const indexAbove = (j - 1) * BOARD_WIDTH + x;
+                                boardCells[index].className = boardCells[indexAbove].className;
+                            }
+                        }
+                        // Kosongkan baris paling atas
+                        for (let x = 0; x < BOARD_WIDTH; x++) {
+                            boardCells[x].className = '';
+                        }
+                        // Karena baris sudah digeser, kita perlu cek ulang baris yang sama (sekarang berisi konten baru)
+                        y++;
+                    }
+                }
+            
+                if (linesCleared > 0) {
+                    updateScore(linesCleared);
+                }
             }
 
 
@@ -708,6 +718,7 @@
             function calculateGhostPosition() {
                 if (!currentTetromino) return;
                 ghostPosition = currentPosition;
+                // Jatuhkan posisi hantu sampai menyentuh dasar atau balok lain
                 while (!currentTetromino.shape[currentRotation].some(index => boardCells[ghostPosition + index + BOARD_WIDTH].classList.contains('taken'))) {
                     ghostPosition += BOARD_WIDTH;
                 }
@@ -715,33 +726,11 @@
             
             function lockPiece() {
                 currentTetromino.shape[currentRotation].forEach(index => {
-                    boardCells[currentPosition + index].classList.add('taken', currentTetromino.class);
-                    boardCells[currentPosition + index].classList.remove('tetromino', 'ghost');
+                    boardCells[currentPosition + index].classList.add('taken');
                 });
-                checkRows();
+                checkRows(); // Cek baris setelah mengunci
                 if(!isGameOver) {
                   spawnNewTetromino();
-                }
-            }
-
-            function checkRows() {
-                let linesCleared = 0;
-                for (let i = 0; i < BOARD_HEIGHT * BOARD_WIDTH; i += BOARD_WIDTH) {
-                    const row = Array.from({ length: BOARD_WIDTH }, (_, k) => i + k);
-                    if (row.every(index => boardCells[index].classList.contains('taken'))) {
-                        linesCleared++;
-                        const cellsAbove = Array.from(gameBoard.querySelectorAll('div:not(.hidden)'));
-                        const removedCells = cellsAbove.splice(i, BOARD_WIDTH);
-                        removedCells.forEach(cell => cell.remove());
-                        for (let k = 0; k < BOARD_WIDTH; k++) {
-                           const cell = document.createElement('div');
-                           gameBoard.prepend(cell);
-                        }
-                        boardCells = Array.from(gameBoard.querySelectorAll('div'));
-                    }
-                }
-                if (linesCleared > 0) {
-                   updateScore(linesCleared);
                 }
             }
             
@@ -752,7 +741,7 @@
 
                 if (lines >= level * 10) {
                     level++;
-                    if (timerId) {
+                    if (isPlaying) {
                         clearInterval(timerId);
                         const speed = 1000 - (level * 50);
                         timerId = setInterval(moveDown, Math.max(100, speed));
@@ -764,7 +753,6 @@
             function displayNextPiece() {
                 const nextGridCells = nextPieceGrid.querySelectorAll('div');
                 nextGridCells.forEach(cell => cell.className = '');
-                
                 const pieceClass = tetrominoes[nextTetrominoIndex].class;
                 nextPieceShapes[nextTetrominoIndex].forEach(index => {
                     if (nextGridCells[index]) {
@@ -794,7 +782,6 @@
             document.getElementById('right-btn').addEventListener('click', moveRight);
             document.getElementById('down-btn').addEventListener('click', moveDown);
             document.getElementById('rotate-btn').addEventListener('click', rotate);
-
 
             // --- Inisialisasi Game ---
             createBoard();
