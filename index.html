@@ -40,6 +40,7 @@
             margin: 0;
             padding: 1rem;
             text-align: center;
+            overflow-x: hidden; /* Mencegah scroll horizontal */
         }
 
         /* Judul Game */
@@ -201,36 +202,8 @@
         /* Kontrol untuk Mobile */
         .mobile-controls {
             display: none; /* Sembunyikan di desktop */
-            margin-top: 20px;
-            width: 100%;
-            max-width: 320px;
-            justify-content: space-between;
-            align-items: center;
         }
-        .mobile-controls button {
-            background-color: var(--sidebar-bg);
-            color: var(--light-text);
-            border: 2px solid var(--border-color);
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 2rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .control-group {
-            display: flex;
-            gap: 15px;
-        }
-        #rotate-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            font-size: 1rem;
-            font-family: 'Press Start 2P';
-        }
-
-
+        
         /* Kelas pembantu untuk menyembunyikan elemen */
         .hidden {
             display: none !important;
@@ -238,6 +211,10 @@
 
         /* ----- Media Query untuk Tampilan Mobile (Responsif) ----- */
         @media (max-width: 768px) {
+            body {
+                padding-bottom: 120px; /* Ruang untuk tombol kontrol mengambang */
+            }
+
             .game-container {
                 flex-direction: column; /* Papan game di atas, sidebar di bawah */
                 align-items: center;
@@ -257,16 +234,50 @@
             .game-sidebar {
                 width: 100%;
                 max-width: 320px;
-                order: 2; /* Pindahkan ke bawah papan */
             }
             
-            .game-board-wrapper {
-                 order: 1;
-            }
-            
+            /* --- PERUBAHAN UTAMA UNTUK UI/UX MOBILE --- */
             .mobile-controls {
                 display: flex;
-                order: 3;
+                position: fixed; /* Membuat kontrol mengambang */
+                bottom: 15px;    /* Jarak dari bawah layar */
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100%;
+                max-width: 320px;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 10px;
+                box-sizing: border-box;
+                z-index: 20; /* Pastikan di atas elemen lain */
+            }
+            .mobile-controls button {
+                background-color: rgba(15, 52, 96, 0.85); /* Warna dengan transparansi */
+                backdrop-filter: blur(4px); /* Efek blur untuk background */
+                color: var(--light-text);
+                border: 2px solid var(--border-color);
+                border-radius: 50%;
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+                font-weight: bold;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                -webkit-tap-highlight-color: transparent; /* Hilangkan highlight saat disentuh */
+            }
+            .control-group {
+                display: flex;
+                gap: 15px;
+            }
+            #rotate-btn {
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                font-size: 0.9rem;
+                font-family: 'Press Start 2P';
+                line-height: 1.2;
             }
         }
     </style>
