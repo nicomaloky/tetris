@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris by Nico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Reset dan Pengaturan Dasar */
+        :root {
+            --bg-color: #1a1a2e;
+            --board-bg: #16213e;
+            --sidebar-bg: #0f3460;
+            --text-color: #e94560;
+            --light-text: #f0f8ff;
+            --border-color: #5372f0;
+            --shadow-color: rgba(83, 114, 240, 0.5);
+
+            /* Warna untuk setiap Tetromino */
+            --i-color: #00f0f0; /* Cyan */
+            --o-color: #f0f000; /* Yellow */
+            --t-color: #a000f0; /* Purple */
+            --s-color: #00f000; /* Green */
+            --z-color: #f00000; /* Red */
+            --j-color: #0000f0; /* Blue */
+            --l-color: #f0a000; /* Orange */
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: var(--bg-color);
+            color: var(--light-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        /* Judul Game */
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            color: var(--text-color);
+            font-size: clamp(2rem, 10vw, 3.5rem);
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 0px var(--sidebar-bg), 0 0 15px var(--text-color);
+            animation: pulse-title 2s infinite;
+        }
+
+        @keyframes pulse-title {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Kontainer Utama Game */
+        .game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Papan Permainan Utama */
+        .game-board-wrapper {
+            position: relative;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(20, 30px);
+            background-color: var(--board-bg);
+            border: 5px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 0 25px var(--shadow-color);
+            position: relative;
+        }
+
+        /* Pesan Game Over di tengah papan */
+        #game-over-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(233, 69, 96, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            z-index: 10;
+            text-align: center;
+            font-size: 1.5rem;
+            font-family: 'Press Start 2P', cursive;
+            display: none; /* Default tersembunyi */
+        }
+        #game-over-message.show {
+            display: block;
+        }
+
+        /* Cell di dalam Papan */
+        .game-board div {
+            width: 30px;
+            height: 30px;
+            box-sizing: border-box;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+        }
+
+        /* Style untuk blok Tetromino */
+        .tetromino {
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.4), inset -2px -2px 4px rgba(0, 0, 0, 0.4);
+        }
+        
+        .ghost {
+            background-color: rgba(255, 255, 255, 0.15) !important;
+            border: 1px dashed rgba(255, 255, 255, 0.5);
+        }
+
+        /* Kelas warna untuk setiap blok */
+        .i { background-color: var(--i-color); }
+        .o { background-color: var(--o-color); }
+        .t { background-color: var(--t-color); }
+        .s { background-color: var(--s-color); }
+        .z { background-color: var(--z-color); }
+        .j { background-color: var(--j-color); }
+        .l { background-color: var(--l-color); }
+
+        /* Sidebar untuk Info Game */
+        .game-sidebar {
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .info-box {
+            background-color: var(--sidebar-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        .info-box h2 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            color: var(--text-color);
+            margin: 0 0 10px 0;
+            text-align: left;
+        }
+
+        .info-box p {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+            text-align: right;
+        }
+
+        /* Preview Blok Berikutnya */
+        .next-piece-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 25px);
+            grid-template-rows: repeat(4, 25px);
+            margin: 10px auto 0;
+            background-color: var(--board-bg);
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .next-piece-grid div {
+            width: 25px;
+            height: 25px;
+            box-sizing: border-box;
+        }
+
+        /* Tombol Kontrol */
+        #start-pause-btn {
+            font-family: 'Press Start 2P', cursive;
+            padding: 15px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            transition: transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 4px 0px #b52a40;
+        }
+
+        #start-pause-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+        
+        /* Kontrol untuk Mobile */
+        .mobile-controls {
+            display: none; /* Sembunyikan di desktop */
+            margin-top: 20px;
+            width: 100%;
+            max-width: 320px;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-controls button {
+            background-color: var(--sidebar-bg);
+            color: var(--light-text);
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .control-group {
+            display: flex;
+            gap: 15px;
+        }
+        #rotate-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 1rem;
+            font-family: 'Press Start 2P';
+        }
+
+
+        /* Kelas pembantu untuk menyembunyikan elemen */
+        .hidden {
+            display: none !important;
+        }
+
+        /* ----- Media Query untuk Tampilan Mobile (Responsif) ----- */
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column; /* Papan game di atas, sidebar di bawah */
+                align-items: center;
+                gap: 30px;
+            }
+
+            .game-board {
+                grid-template-columns: repeat(10, min(8vw, 30px));
+                grid-template-rows: repeat(20, min(8vw, 30px));
+            }
+
+            .game-board div {
+                width: auto;
+                height: auto;
+            }
+
+            .game-sidebar {
+                width: 100%;
+                max-width: 320px;
+                order: 2; /* Pindahkan ke bawah papan */
+            }
+            
+            .game-board-wrapper {
+                 order: 1;
+            }
+            
+            .mobile-controls {
+                display: flex;
+                order: 3;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>TETRIS</h1>
+
+    <div class="game-container">
+        
+        <div class="game-sidebar">
+            <div class="info-box">
+                <h2>SKOR</h2>
+                <p id="score">0</p>
+            </div>
+            <div class="info-box">
+                <h2>BARIS</h2>
+                <p id="lines">0</p>
+            </div>
+            <div class="info-box">
+                <h2>LEVEL</h2>
+                <p id="level">1</p>
+            </div>
+            <div class="info-box">
+                <h2>BERIKUTNYA</h2>
+                <div class="next-piece-grid"></div>
+            </div>
+            <button id="start-pause-btn">Mulai</button>
+        </div>
+
+        <div class="game-board-wrapper">
+            <div class="game-board"></div>
+            <div id="game-over-message">GAME OVER</div>
+        </div>
+        
+    </div>
+    
+    <!-- Tombol Kontrol untuk Mobile -->
+    <div class="mobile-controls">
+        <div class="control-group">
+            <button id="left-btn">&larr;</button>
+            <button id="right-btn">&rarr;</button>
+        </div>
+        <button id="rotate-btn">Putar</button>
+        <button id="down-btn">&darr;</button>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Ambil Elemen dari HTML ---
+            const gameBoard = document.querySelector('.game-board');
+            const scoreDisplay = document.getElementById('score');
+            const linesDisplay = document.getElementById('lines');
+            const levelDisplay = document.getElementById('level');
+            const startPauseBtn = document.getElementById('start-pause-btn');
+            const nextPieceGrid = document.querySelector('.next-piece-grid');
+            const gameOverMessage = document.getElementById('game-over-message');
+
+            // --- Konfigurasi Game ---
+            const BOARD_WIDTH = 10;
+            const BOARD_HEIGHT = 20;
+
+            let boardCells = []; // Array untuk sel di papan
+            let timerId = null;
+            let isPlaying = false;
+            let isGameOver = true;
+
+            // Variabel state game
+            let score = 0;
+            let lines = 0;
+            let level = 1;
+            
+            // Variabel untuk Tetromino
+            let currentPosition;
+            let currentRotation;
+            let currentTetromino;
+            let nextTetrominoIndex;
+            let ghostPosition;
+
+            // --- Definisikan Bentuk dan Warna Tetromino ---
+            // Setiap tetromino memiliki bentuk (beberapa array rotasi) dan kelas warna
+            const tetrominoes = [
+                { // I
+                    shape: [
+                        [1, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1, BOARD_WIDTH * 3 + 1],
+                        [BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH + 2, BOARD_WIDTH + 3]
+                    ],
+                    class: 'i'
+                },
+                { // L
+                    shape: [
+                        [1, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1, 2],
+                        [BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH + 2, BOARD_WIDTH * 2 + 2],
+                        [1, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1, BOARD_WIDTH * 2],
+                        [BOARD_WIDTH, BOARD_WIDTH * 2, BOARD_WIDTH * 2 + 1, BOARD_WIDTH * 2 + 2]
+                    ],
+                    class: 'l'
+                },
+                { // J
+                    shape: [
+                        [1, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1, BOARD_WIDTH * 2 + 2],
+                        [BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH + 2, 2],
+                        [0, 1, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1],
+                        [BOARD_WIDTH, BOARD_WIDTH * 2, BOARD_WIDTH * 2 + 1, 2]
+                    ],
+                    class: 'j'
+                },
+                { // O
+                    shape: [
+                        [0, 1, BOARD_WIDTH, BOARD_WIDTH + 1],
+                        [0, 1, BOARD_WIDTH, BOARD_WIDTH + 1]
+                    ],
+                    class: 'o'
+                },
+                { // S
+                    shape: [
+                        [BOARD_WIDTH + 1, BOARD_WIDTH + 2, BOARD_WIDTH * 2, BOARD_WIDTH * 2 + 1],
+                        [0, BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1]
+                    ],
+                    class: 's'
+                },
+                { // T
+                    shape: [
+                        [1, BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH + 2],
+                        [1, BOARD_WIDTH + 1, BOARD_WIDTH + 2, BOARD_WIDTH * 2 + 1],
+                        [BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH + 2, 1],
+                        [1, BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1]
+                    ],
+                    class: 't'
+                },
+                { // Z
+                    shape: [
+                        [BOARD_WIDTH, BOARD_WIDTH + 1, BOARD_WIDTH * 2 + 1, BOARD_WIDTH * 2 + 2],
+                        [2, BOARD_WIDTH + 1, BOARD_WIDTH + 2, BOARD_WIDTH * 2 + 1]
+                    ],
+                    class: 'z'
+                }
+            ];
+            
+            // Posisi untuk preview (grid 4x4)
+            const nextPieceShapes = [
+                [1, 5, 9, 13],    // i
+                [1, 5, 6, 9],     // l
+                [1, 5, 4, 8],     // j
+                [1, 2, 5, 6],     // o
+                [2, 3, 5, 6],     // s
+                [1, 4, 5, 6],     // t
+                [0, 1, 5, 6],     // z
+            ];
+
+            // --- FUNGSI UTAMA GAME ---
+
+            // 1. Membuat Papan Permainan
+            function createBoard() {
+                // Board utama
+                for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT; i++) {
+                    const cell = document.createElement('div');
+                    gameBoard.appendChild(cell);
+                }
+                // Menambahkan baris 'taken' di dasar untuk deteksi benturan
+                for (let i = 0; i < BOARD_WIDTH; i++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('taken', 'hidden');
+                    gameBoard.appendChild(cell);
+                }
+                boardCells = Array.from(gameBoard.querySelectorAll('div'));
+
+                // Grid untuk 'Next Piece'
+                for (let i = 0; i < 16; i++) {
+                    nextPieceGrid.appendChild(document.createElement('div'));
+                }
+            }
+            
+            // 2. Mengatur State Permainan (Mulai, Jeda, Reset)
+            function handleStartPause() {
+                if (timerId) { // Game sedang berjalan -> Jeda
+                    clearInterval(timerId);
+                    timerId = null;
+                    isPlaying = false;
+                    startPauseBtn.textContent = 'Lanjut';
+                } else { // Game dijeda atau baru mulai
+                    if (isGameOver) {
+                        resetGame();
+                    }
+                    isPlaying = true;
+                    gameOverMessage.classList.remove('show');
+                    startPauseBtn.textContent = 'Jeda';
+                    const speed = 1000 - (level * 50);
+                    timerId = setInterval(moveDown, Math.max(100, speed));
+                }
+            }
+
+            function resetGame() {
+                // Bersihkan board
+                for (let i = 0; i < BOARD_WIDTH * BOARD_HEIGHT; i++) {
+                    boardCells[i].className = '';
+                }
+                
+                // Reset state
+                score = 0;
+                lines = 0;
+                level = 1;
+                updateDisplay();
+                
+                isGameOver = false;
+                isPlaying = true;
+
+                // Siapkan piece baru
+                nextTetrominoIndex = Math.floor(Math.random() * tetrominoes.length);
+                spawnNewTetromino();
+            }
+            
+            function updateDisplay() {
+                scoreDisplay.textContent = score;
+                linesDisplay.textContent = lines;
+                levelDisplay.textContent = level;
+            }
+
+            // 3. Menggambar dan Menghapus Tetromino
+            function draw() {
+                if (currentTetromino) {
+                    // Draw ghost piece
+                    undrawGhost();
+                    calculateGhostPosition();
+                    drawGhost();
+
+                    // Draw actual piece
+                    currentTetromino.shape[currentRotation].forEach(index => {
+                        boardCells[currentPosition + index].classList.add('tetromino', currentTetromino.class);
+                    });
+                }
+            }
+
+            function undraw() {
+                if (currentTetromino) {
+                    currentTetromino.shape[currentRotation].forEach(index => {
+                        boardCells[currentPosition + index].classList.remove('tetromino', currentTetromino.class);
+                    });
+                }
+            }
+            
+            function drawGhost() {
+                currentTetromino.shape[currentRotation].forEach(index => {
+                    boardCells[ghostPosition + index].classList.add('ghost');
+                });
+            }
+
+            function undrawGhost() {
+                const ghosts = document.querySelectorAll('.ghost');
+                ghosts.forEach(g => g.classList.remove('ghost'));
+            }
+
+            // 4. Memunculkan Tetromino Baru
+            function spawnNewTetromino() {
+                currentPosition = 4;
+                currentRotation = 0;
+                
+                const randomIndex = nextTetrominoIndex;
+                nextTetrominoIndex = Math.floor(Math.random() * tetrominoes.length);
+                currentTetromino = tetrominoes[randomIndex];
+
+                // Cek jika spawn nabrak -> Game Over
+                if (checkCollision()) {
+                    triggerGameOver();
+                    return;
+                }
+                
+                draw();
+                displayNextPiece();
+            }
+
+            function triggerGameOver() {
+                clearInterval(timerId);
+                timerId = null;
+                isGameOver = true;
+                isPlaying = false;
+                gameOverMessage.classList.add('show');
+                startPauseBtn.textContent = 'Mulai Lagi';
+            }
+
+            // 5. Menggerakkan Tetromino
+            function move(offset) {
+                if (!isPlaying || isGameOver) return;
+                undraw();
+                currentPosition += offset;
+                if (checkCollision()) {
+                    currentPosition -= offset;
+                }
+                draw();
+            }
+            
+            function moveLeft() {
+                const isAtLeftEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === 0);
+                if (!isAtLeftEdge) move(-1);
+            }
+
+            function moveRight() {
+                const isAtRightEdge = currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH === BOARD_WIDTH - 1);
+                if (!isAtRightEdge) move(1);
+            }
+            
+            function moveDown() {
+                if (!isPlaying || isGameOver) return;
+                undraw();
+                currentPosition += BOARD_WIDTH;
+                if (checkCollision()) {
+                    currentPosition -= BOARD_WIDTH;
+                    lockPiece();
+                    return; // Hentikan setelah mengunci
+                }
+                draw();
+            }
+            
+            function hardDrop() {
+                if (!isPlaying || isGameOver) return;
+                undraw();
+                currentPosition = ghostPosition;
+                lockPiece();
+            }
+            
+            function rotate() {
+                if (!isPlaying || isGameOver) return;
+                undraw();
+                const originalRotation = currentRotation;
+                currentRotation = (currentRotation + 1) % currentTetromino.shape.length;
+                
+                // Jika rotasi menyebabkan collision, batalkan
+                if (checkCollision()) {
+                    // Sederhana "wall kick" logic
+                    if (currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH < 2)) {
+                       moveRight();
+                       if (checkCollision()) moveLeft(); // batal jika masih nabrak
+                    } else if (currentTetromino.shape[currentRotation].some(index => (currentPosition + index) % BOARD_WIDTH > 7)) {
+                        moveLeft();
+                        if (checkCollision()) moveRight(); // batal
+                    }
+                    
+                    if(checkCollision()){
+                         currentRotation = originalRotation;
+                    }
+                }
+                draw();
+            }
+
+
+            // 6. Logika Inti: Collision, Locking, Scoring
+            function checkCollision() {
+                return currentTetromino.shape[currentRotation].some(index =>
+                    boardCells[currentPosition + index].classList.contains('taken')
+                );
+            }
+
+            function calculateGhostPosition() {
+                ghostPosition = currentPosition;
+                while (!currentTetromino.shape[currentRotation].some(index => boardCells[ghostPosition + index + BOARD_WIDTH].classList.contains('taken'))) {
+                    ghostPosition += BOARD_WIDTH;
+                }
+            }
+            
+            function lockPiece() {
+                currentTetromino.shape[currentRotation].forEach(index => {
+                    boardCells[currentPosition + index].classList.add('taken', currentTetromino.class);
+                    boardCells[currentPosition + index].classList.remove('tetromino', 'ghost');
+                });
+                checkRows();
+                if(!isGameOver) {
+                  spawnNewTetromino();
+                }
+            }
+
+            function checkRows() {
+                let linesCleared = 0;
+                for (let i = 0; i < BOARD_HEIGHT; i++) {
+                    const rowStartIndex = i * BOARD_WIDTH;
+                    const row = Array.from({ length: BOARD_WIDTH }, (_, k) => boardCells[rowStartIndex + k]);
+
+                    if (row.every(cell => cell.classList.contains('taken'))) {
+                        linesCleared++;
+                        // Hapus baris dari papan
+                        for (let j = rowStartIndex + BOARD_WIDTH - 1; j >= 0; j--) {
+                            boardCells[j].className = j >= BOARD_WIDTH ? boardCells[j - BOARD_WIDTH].className : '';
+                        }
+                    }
+                }
+                if (linesCleared > 0) {
+                   updateScore(linesCleared);
+                }
+            }
+            
+            function updateScore(cleared) {
+                const points = [40, 100, 300, 1200];
+                score += points[cleared - 1] * level;
+                lines += cleared;
+
+                if (lines >= level * 10) {
+                    level++;
+                    // Percepat game
+                    if (timerId) {
+                        clearInterval(timerId);
+                        const speed = 1000 - (level * 50);
+                        timerId = setInterval(moveDown, Math.max(100, speed));
+                    }
+                }
+                updateDisplay();
+            }
+
+            // 7. Menampilkan Blok Berikutnya
+            function displayNextPiece() {
+                const nextGridCells = nextPieceGrid.querySelectorAll('div');
+                nextGridCells.forEach(cell => cell.className = ''); // Bersihkan grid
+                
+                const pieceClass = tetrominoes[nextTetrominoIndex].class;
+                nextPieceShapes[nextTetrominoIndex].forEach(index => {
+                    nextGridCells[index].classList.add('tetromino', pieceClass);
+                });
+            }
+
+            // 8. Menangani Input (Keyboard & Mobile)
+            function control(e) {
+                if (!isPlaying || isGameOver) return;
+                switch (e.keyCode) {
+                    case 37: moveLeft(); break;       // Panah Kiri
+                    case 39: moveRight(); break;      // Panah Kanan
+                    case 40: moveDown(); break;       // Panah Bawah
+                    case 38: rotate(); break;         // Panah Atas (Rotate)
+                    case 32: hardDrop(); break;       // Spasi (Hard Drop)
+                }
+            }
+            
+            // --- Event Listeners ---
+            document.addEventListener('keydown', control);
+            startPauseBtn.addEventListener('click', handleStartPause);
+            
+            // Kontrol Mobile
+            document.getElementById('left-btn').addEventListener('click', moveLeft);
+            document.getElementById('right-btn').addEventListener('click', moveRight);
+            document.getElementById('down-btn').addEventListener('click', moveDown);
+            document.getElementById('rotate-btn').addEventListener('click', rotate);
+
+
+            // --- Inisialisasi Game ---
+            createBoard();
+        });
+    </script>
+</body>
+</html>
